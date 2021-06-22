@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"encoding/xml"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"sort"
@@ -716,18 +717,32 @@ func (e *Element) readFrom(ri io.Reader, settings ReadSettings) (n int64, err er
 				e.createAttr(a.Name.Space, a.Name.Local, a.Value, e)
 			}
 			stack.push(e)
+
+			r.StartCaching()
 		case xml.EndElement:
 			if top.Tag != t.Name.Local || top.Space != t.Name.Space {
 				return r.bytes, ErrXML
 			}
 			stack.pop()
 		case xml.CharData:
+			r.StopCaching()
+
+			cached := strings.ToUpper(string(r.Cache()))
 			data := string(t)
+
 			var flags charDataFlags
 			if isWhitespace(data) {
 				flags = whitespaceFlag
 			}
+
+			if strings.HasPrefix(cached, "<![CDATA[") {
+				data = fmt.Sprintf("<![CDATA[%s]]>", data)
+				flags = cdataFlag
+			}
+
 			newCharData(data, flags, top)
+
+			r.StartCaching()
 		case xml.Comment:
 			newComment(string(t), top)
 		case xml.Directive:

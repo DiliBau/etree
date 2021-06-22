@@ -558,11 +558,11 @@ func TestCdata(t *testing.T) {
 		in, out string
 	}{
 		{`<tag>1234567</tag>`, "1234567"},
-		{`<tag><![CDATA[1234567]]></tag>`, "1234567"},
+		{`<tag><![CDATA[1234567]]></tag>`, "<![CDATA[1234567]]>"},
 		{`<tag>1<![CDATA[2]]>3<![CDATA[4]]>5<![CDATA[6]]>7</tag>`, "1234567"},
 		{`<tag>1<![CDATA[2]]>3<inner>4</inner>5<![CDATA[6]]>7</tag>`, "123"},
 		{`<tag>1<inner>4</inner>5<![CDATA[6]]>7</tag>`, "1"},
-		{`<tag><![CDATA[1]]><inner>4</inner>5<![CDATA[6]]>7</tag>`, "1"},
+		{`<tag><![CDATA[1]]><inner>4</inner>5<![CDATA[6]]>7</tag>`, "<![CDATA[1]]>"},
 	}
 
 	for _, test := range tests {

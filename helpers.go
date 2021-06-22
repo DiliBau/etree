@@ -86,18 +86,71 @@ func (f *fifo) grow() {
 // countReader implements a proxy reader that counts the number of
 // bytes read from its encapsulated reader.
 type countReader struct {
-	r     io.Reader
-	bytes int64
+	buffer   *bufio.Reader
+	bytes    int64
+	cache    []byte
+	cacheCap int
+	cacheLen int
+	caching  bool
 }
 
 func newCountReader(r io.Reader) *countReader {
-	return &countReader{r: r}
+	return &countReader{
+		buffer:   bufio.NewReader(r),
+		cache:    make([]byte, 4096),
+		cacheCap: 4096,
+		cacheLen: 0,
+		caching:  false,
+	}
 }
 
-func (cr *countReader) Read(p []byte) (n int, err error) {
-	b, err := cr.r.Read(p)
-	cr.bytes += int64(b)
+func (cr *countReader) StartCaching() {
+	cr.cacheLen = 0
+	cr.caching = true
+}
+
+func (cr *countReader) ReadByte() (byte, error) {
+	if !cr.caching {
+		return cr.buffer.ReadByte()
+	}
+	b, err := cr.buffer.ReadByte()
+	if err != nil {
+		return b, err
+	}
+	if cr.cacheLen < cr.cacheCap {
+		cr.cache[cr.cacheLen] = b
+		cr.cacheLen++
+	}
 	return b, err
+}
+
+func (cr *countReader) Cache() []byte {
+	return cr.cache[:cr.cacheLen]
+}
+
+func (cr *countReader) StopCaching() {
+	cr.caching = false
+}
+
+func (cr *countReader) Read(p []byte) (int, error) {
+	n, err := cr.buffer.Read(p)
+	cr.bytes += int64(n)
+
+	if err != nil {
+		return n, err
+	}
+
+	if cr.caching && cr.cacheLen < cr.cacheCap {
+		for i := 0; i < n; i++ {
+			cr.cache[cr.cacheLen] = p[i]
+			cr.cacheLen++
+			if cr.cacheLen >= cr.cacheCap {
+				break
+			}
+		}
+	}
+
+	return n, err
 }
 
 // countWriter implements a proxy writer that counts the number of
