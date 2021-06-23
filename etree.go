@@ -11,7 +11,6 @@ import (
 	"bytes"
 	"encoding/xml"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"sort"
@@ -736,8 +735,7 @@ func (e *Element) readFrom(ri io.Reader, settings ReadSettings) (n int64, err er
 			}
 
 			if strings.HasPrefix(cached, "<![CDATA[") {
-				data = fmt.Sprintf("<![CDATA[%s]]>", data)
-				flags = cdataFlag
+				flags |= cdataFlag
 			}
 
 			newCharData(data, flags, top)
